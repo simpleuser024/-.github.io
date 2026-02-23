@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+    <input type="file" id="fileInput">
+<script>
+const cloudName = "dkbqifu8";
+const uploadPreset = "YOUR_UPLOAD_PRESET";
+
+document.getElementById("fileInput").addEventListener("change", async function (e) {
+
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("upload_preset", uploadPreset);
+
+    try {
+        const response = await fetch(
+            `https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`,
+            {
+                method: "POST",
+                body: formData
+            }
+        );
+
+        const data = await response.json();
+
+        const imageUrl = data.secure_url;
+
+        console.log("Uploaded:", imageUrl);
+
+        // 🔥 Firebase Realtime Database me save karo
+        saveToDatabase(imageUrl);
+
+    } catch (error) {
+        console.error("Upload failed:", error);
+    }
+});
+function saveToDatabase(imageUrl) {
+    const username = localStorage.getItem("username");
+
+    firebase.database()
+        .ref("users/" + username + "/profileImage")
+        .set(imageUrl);
+}
+function sendImageMessage(imageUrl) {
+
+    const messageData = {
+        sender: currentUser,
+        image: imageUrl,
+        timestamp: Date.now()
+    };
+
+    firebase.database()
+        .ref("messages/" + roomId)
+        .push(messageData);
+}
+if (message.image) {
+    chatBox.innerHTML += `
+        <div class="msg">
+            <img src="${message.image}" style="max-width:200px;border-radius:10px;">
+        </div>
+    `;
+}
+firebase.database()
+    .ref("users/" + username + "/profileImage")
+    .on("value", snapshot => {
+
+        const dpUrl = snapshot.val();
+
+        if (dpUrl) {
+            document.getElementById("userDp").src = dpUrl;
+        }
+});
+
+</script>
+</body>
+</html>
