@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voice</title>
+</head>
+<body>
+<h2>Voice Message Test (Frontend Only)</h2>
+
+<button id="recordBtn">Start Recording</button>
+<button id="stopBtn" disabled>Stop Recording</button>
+
+<audio id="voiceMsgPlayer" controls></audio>
+
+<script>
+let mediaRecorder;
+let audioChunks = [];
+
+const recordBtn = document.getElementById('recordBtn');
+const stopBtn = document.getElementById('stopBtn');
+const audioPlayer = document.getElementById('voiceMsgPlayer');
+
+recordBtn.addEventListener('click', async () => {
+    try {
+        // Ask for microphone
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(stream);
+        audioChunks = [];
+
+        mediaRecorder.addEventListener('dataavailable', event => {
+            audioChunks.push(event.data);
+        });
+
+        mediaRecorder.addEventListener('stop', () => {
+            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+            const audioUrl = URL.createObjectURL(audioBlob);
+            audioPlayer.src = audioUrl;  // Play instantly
+
+            console.log("Voice message ready!", audioBlob);
+        });
+
+        mediaRecorder.start();
+        recordBtn.disabled = true;
+        stopBtn.disabled = false;
+
+        console.log("Recording started...");
+    } catch (err) {
+        console.error("Microphone access failed:", err);
+        alert("Microphone access denied or not available.");
+    }
+});
+
+stopBtn.addEventListener('click', () => {
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop();
+        recordBtn.disabled = false;
+        stopBtn.disabled = true;
+        console.log("Recording stopped.");
+    }
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notification Test</title>
+</head>
+<body>
+<h2>Voice Message + Notification Test</h2>
+
+<!-- Voice Recording -->
+<button id="recordBtn">Start Recording</button>
+<button id="stopBtn" disabled>Stop Recording</button>
+<button id="shareBtn" disabled>Share</button>
+
+<audio id="voicePlayer" controls></audio>
+
+<!-- Optional text message -->
+<input type="text" id="chatInput" placeholder="Type message">
+<button id="sendTextBtn">Send Text</button>
+
+ <script src="https://www.gstatic.com/firebasejs/9.x.x/firebase-database.js"></script>
+<script>  
+     // Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyBXAcJKOqogVeYQJ928rMwtfEzQrJIqo9M",
+            authDomain: "mychatapp-8cfea.firebaseapp.com",
+            databaseURL: "https://mychatapp-8cfea-default-rtdb.firebaseio.com",
+            projectId: "mychatapp-8cfea",
+            storageBucket: "mychatapp-8cfea.firebasestorage.app",
+            messagingSenderId: "1057564795281",
+            appId: "1:1057564795281:web:2f23865ea56381230a7a30"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+        const storage = firebase.storage();
+        const messaging = firebase.messaging();
+
+        // ========== CLOUDINARY CONFIG ==========
+        const CLOUDINARY_CONFIG = {
+            cloudName: 'chat_uploads_new',
+            uploadPreset: 'chat_uploads_new',
+            uploadUrl: 'https://api.cloudinary.com/v1_1/dkbqifu8/auto/upload'
+        };
+
+// ================== NOTIFICATION PERMISSION ==================
+if ("Notification" in window) {
+    Notification.requestPermission().then(p => console.log("Notification permission:", p));
+}
+
+// ================== TEXT MESSAGE ==================
+const chatInput = document.getElementById('chatInput');
+const sendTextBtn = document.getElementById('sendTextBtn');
+
+sendTextBtn.addEventListener('click', () => {
+    const text = chatInput.value.trim();
+    if(!text) return;
+    db.ref('messages').push({
+        type: 'text',
+        senderName: 'User123',
+        text,
+        timestamp: Date.now()
+    });
+    chatInput.value = '';
+});
+
+// ================== VOICE RECORDING ==================
+let mediaRecorder;
+let audioChunks = [];
+let currentAudioBlob = null;
+
+const recordBtn = document.getElementById('recordBtn');
+const stopBtn = document.getElementById('stopBtn');
+const shareBtn = document.getElementById('shareBtn');
+const voicePlayer = document.getElementById('voicePlayer');
+
+recordBtn.addEventListener('click', async () => {
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(stream);
+        audioChunks = [];
+
+        mediaRecorder.addEventListener('dataavailable', e => audioChunks.push(e.data));
+
+        mediaRecorder.addEventListener('stop', () => {
+            currentAudioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+            const audioUrl = URL.createObjectURL(currentAudioBlob);
+            voicePlayer.src = audioUrl;
+            shareBtn.disabled = false;
+            console.log("Voice ready for share!");
+        });
+
+        mediaRecorder.start();
+        recordBtn.disabled = true;
+        stopBtn.disabled = false;
+        console.log("Recording started...");
+    } catch (err) {
+        console.error("Mic access failed:", err);
+        alert("Microphone access denied or not available.");
+    }
+});
+
+stopBtn.addEventListener('click', () => {
+    if(mediaRecorder && mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop();
+        recordBtn.disabled = false;
+        stopBtn.disabled = true;
+        console.log("Recording stopped.");
+    }
+});
+
+// ================== SHARE VOICE ==================
+shareBtn.addEventListener('click', () => {
+    if(!currentAudioBlob) return;
+
+    // Convert blob to base64 to save in Firebase
+    const reader = new FileReader();
+    reader.onloadend = () => {
+        db.ref('messages').push({
+            type: 'voice',
+            senderName: 'User123',
+            timestamp: Date.now(),
+            audioBase64: reader.result
+        }).then(() => console.log("Voice message shared!"));
+
+        // Notification
+        if(Notification.permission === "granted") {
+            new Notification("Voice Message", { body: "New voice message from User123" });
+        }
+    };
+    reader.readAsDataURL(currentAudioBlob);
+
+    currentAudioBlob = null;
+    shareBtn.disabled = true;
+    voicePlayer.src = "";
+});
+
+// ================== LISTENER FOR NEW MESSAGES ==================
+db.ref('messages').on('child_added', snapshot => {
+    const msg = snapshot.val();
+    if(!msg) return;
+
+    // Optional: Play sound for new message
+    const audio = new Audio('msg_sound.mp3'); // Replace with your notification sound
+    audio.play();
+});
+
+
+
+</script>
+</body>
+</html>

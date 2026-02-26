@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Cloudinary DP Test</title>
+</head>
+<body>
+    <h2>Profile Image Upload Test</h2>
+
+    <!-- File Input -->
+    <input type="file" id="profileImageInput" accept="image/*">
+
+    <!-- Profile Image Preview -->
+    <div>
+        <h3>Preview:</h3>
+        <img id="profileImg" src="default.jpg" width="150" style="border-radius:50%; border:2px solid #333;">
+    </div>
+
+    <!-- Firebase SDK (optional) -->
+    <!-- <script src="https://www.gstatic.com/firebasejs/9.x.x/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.x.x/firebase-database.js"></script> -->
+
+    <script >// ================= CLOUDINARY CONFIG =================
+const CLOUDINARY_CONFIG = {
+    cloudName: "dxidk3bbd",           // Your Cloud Name
+    uploadPreset: "unsigned_preset",   // Your Unsigned Upload Preset
+    uploadUrl: "https://api.cloudinary.com/v1_1/dxidk3bbd/image/upload"
+};
+
+// ================= CLOUDINARY UPLOAD FUNCTION =================
+async function uploadToCloudinary(file) {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('upload_preset', CLOUDINARY_CONFIG.uploadPreset);
+    formData.append('cloud_name', CLOUDINARY_CONFIG.cloudName);
+
+    try {
+        const response = await fetch(CLOUDINARY_CONFIG.uploadUrl, {
+            method: 'POST',
+            body: formData
+        });
+
+        if (!response.ok) {
+            throw new Error(`Upload failed: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        return {
+            url: data.secure_url,
+            publicId: data.public_id,
+            bytes: data.bytes,
+            format: data.format,
+            resourceType: data.resource_type
+        };
+    } catch (error) {
+        console.error('Cloudinary upload error:', error);
+        throw error;
+    }
+}
+
+// ================= HANDLE FILE INPUT =================
+const fileInput = document.getElementById('profileImageInput');
+const profileImg = document.getElementById('profileImg');
+
+fileInput.addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Optional: instant local preview before upload
+    profileImg.src = URL.createObjectURL(file);
+
+    try {
+        const uploaded = await uploadToCloudinary(file);
+
+        // Update frontend DP
+        profileImg.src = uploaded.url;
+
+        console.log('Cloudinary URL:', uploaded.url);
+
+        // Optional: Save to Firebase
+        /*
+        const userId = "user123"; // Replace with real UID
+        firebase.database().ref('users/' + userId).update({
+            profileImage: uploaded.url
+        });
+        */
+
+        alert('Profile Image uploaded successfully!');
+    } catch (err) {
+        
+    }
+});</script>
+</body>
+</html>
