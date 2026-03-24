@@ -784,6 +784,93 @@
             font-size: 0.9rem;
         }
 
+        .clickable-profile {
+            cursor: pointer;
+        }
+
+        .profile-field label {
+            display: block;
+            margin-bottom: 8px;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .profile-section-title {
+            margin: 20px 0 10px;
+            color: var(--primary);
+            font-size: 1rem;
+        }
+
+        .tone-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+
+        .tone-meta {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-top: 8px;
+        }
+
+        .tone-preview {
+            width: 100%;
+            margin-top: 12px;
+        }
+
+        .user-profile-card {
+            text-align: center;
+        }
+
+        .user-profile-card img {
+            width: 110px;
+            height: 110px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid var(--primary);
+            margin-bottom: 16px;
+        }
+
+        .user-profile-name {
+            font-size: 1.3rem;
+            color: var(--text-primary);
+            margin-bottom: 6px;
+        }
+
+        .user-profile-username {
+            color: var(--primary);
+            font-size: 0.9rem;
+            margin-bottom: 12px;
+        }
+
+        .user-profile-meta {
+            display: grid;
+            gap: 10px;
+            margin-top: 20px;
+            text-align: left;
+        }
+
+        .user-profile-meta-item {
+            padding: 12px 14px;
+            border-radius: 18px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--glass-border);
+        }
+
+        .user-profile-meta-item strong {
+            display: block;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+            font-size: 0.85rem;
+        }
+
+        .user-profile-meta-item span {
+            color: var(--text-secondary);
+            font-size: 0.92rem;
+            word-break: break-word;
+        }
+
         .header-dropdown-item {
             padding: 12px 20px;
             display: flex;
@@ -3114,8 +3201,8 @@
                     <button class="mobile-sidebar-toggle" id="mobileSidebarToggle">
                         <i class="fas fa-chevron-left"></i>
                     </button>
-                    <img src="https://via.placeholder.com/48" alt="avatar" id="chatAvatarImg">
-                    <div class="header-info">
+                    <img src="https://via.placeholder.com/48" alt="avatar" id="chatAvatarImg" class="clickable-profile">
+                    <div class="header-info clickable-profile" id="chatProfileTrigger">
                         <h3 id="chatWithName">Select a chat</h3>
                         <p id="onlineStatus"><i class="fas fa-circle" style="color: #aaa; font-size: 0.6rem;"></i> Offline</p>
                         <div id="typingIndicatorSmall" class="typing-indicator-small" style="display: none;">
@@ -3302,9 +3389,61 @@
                 <label>New Password</label>
                 <input type="password" class="admin-input" id="newPasswordProfile" placeholder="Enter new password">
             </div>
+            <h4 class="profile-section-title"><i class="fas fa-bell"></i> Notification Tone</h4>
+            <div class="profile-field">
+                <label>Upload your own MP3 tone</label>
+                <input type="file" id="notificationToneUpload" accept="audio/mpeg,audio/mp3,audio/*" style="display: none;">
+                <button class="icon-btn" id="notificationTonePickerBtn" style="width: 100%; border-radius: 30px; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                    <i class="fas fa-music"></i> Choose MP3
+                </button>
+                <div class="tone-meta" id="notificationToneStatus">Default app tone active</div>
+                <audio class="tone-preview" id="notificationTonePreview" controls style="display: none;"></audio>
+                <div class="tone-actions">
+                    <button class="icon-btn" id="playNotificationToneBtn" style="width: auto; padding: 0 16px; border-radius: 30px;">
+                        <i class="fas fa-play"></i>&nbsp;Preview
+                    </button>
+                    <button class="icon-btn" id="removeNotificationToneBtn" style="width: auto; padding: 0 16px; border-radius: 30px;">
+                        <i class="fas fa-trash"></i>&nbsp;Remove Tone
+                    </button>
+                </div>
+            </div>
             <button class="login-btn" id="updateProfileBtn" style="margin-top: 10px;">
                 <i class="fas fa-save"></i> Update Profile
             </button>
+        </div>
+
+        <div class="dialog-overlay" id="userProfileDialog">
+            <div class="dialog">
+                <div class="panel-header" style="margin-bottom: 20px;">
+                    <h3><i class="fas fa-id-card"></i> User Profile</h3>
+                    <button class="close-panel" id="closeUserProfileDialog">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="user-profile-card">
+                    <img src="https://via.placeholder.com/100" alt="profile" id="userProfileAvatar">
+                    <div class="user-profile-name" id="userProfileName">User</div>
+                    <div class="user-profile-username" id="userProfileUsername">@user</div>
+                    <div class="user-profile-meta">
+                        <div class="user-profile-meta-item">
+                            <strong>Status</strong>
+                            <span id="userProfileStatus">Offline</span>
+                        </div>
+                        <div class="user-profile-meta-item">
+                            <strong>Role</strong>
+                            <span id="userProfileRole">User</span>
+                        </div>
+                        <div class="user-profile-meta-item">
+                            <strong>Email</strong>
+                            <span id="userProfileEmail">Not shared</span>
+                        </div>
+                        <div class="user-profile-meta-item">
+                            <strong>Bio</strong>
+                            <span id="userProfileBio">No bio yet</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- Redesigned Theme Panel -->
@@ -3575,6 +3714,7 @@
         const onlineStatusSpan = document.getElementById('onlineStatus');
         const typingIndicatorSmall = document.getElementById('typingIndicatorSmall');
         const chatAvatarImg = document.getElementById('chatAvatarImg');
+        const chatProfileTrigger = document.getElementById('chatProfileTrigger');
         const logoutBtn = document.getElementById('logoutBtn');
         const typingIndicator = document.getElementById('typingIndicator');
         const emojiBtn = document.getElementById('emojiBtn');
@@ -3691,10 +3831,25 @@
         // Profile elements
         const profileImagePreview = document.getElementById('profileImagePreview');
         const profileImageUpload = document.getElementById('profileImageUpload');
+        const notificationToneUpload = document.getElementById('notificationToneUpload');
+        const notificationTonePickerBtn = document.getElementById('notificationTonePickerBtn');
+        const notificationToneStatus = document.getElementById('notificationToneStatus');
+        const notificationTonePreview = document.getElementById('notificationTonePreview');
+        const playNotificationToneBtn = document.getElementById('playNotificationToneBtn');
+        const removeNotificationToneBtn = document.getElementById('removeNotificationToneBtn');
         const profileName = document.getElementById('profileName');
         const profileBio = document.getElementById('profileBio');
         const newPasswordProfile = document.getElementById('newPasswordProfile');
         const updateProfileBtn = document.getElementById('updateProfileBtn');
+        const userProfileDialog = document.getElementById('userProfileDialog');
+        const closeUserProfileDialog = document.getElementById('closeUserProfileDialog');
+        const userProfileAvatar = document.getElementById('userProfileAvatar');
+        const userProfileName = document.getElementById('userProfileName');
+        const userProfileUsername = document.getElementById('userProfileUsername');
+        const userProfileStatus = document.getElementById('userProfileStatus');
+        const userProfileRole = document.getElementById('userProfileRole');
+        const userProfileEmail = document.getElementById('userProfileEmail');
+        const userProfileBio = document.getElementById('userProfileBio');
 
         // Theme elements
         const themeOptions = document.querySelectorAll('.theme-card[data-theme]');
@@ -3909,6 +4064,21 @@
         }
 
         function playNotificationSound() {
+            const customToneUrl = localUsers[CURRENT_USER]?.notificationToneUrl;
+
+            if (customToneUrl) {
+                try {
+                    const audio = new Audio(customToneUrl);
+                    audio.volume = 0.8;
+                    audio.play().catch(error => {
+                        console.error('Custom notification tone play error:', error);
+                    });
+                    return;
+                } catch (error) {
+                    console.error('Custom notification tone init error:', error);
+                }
+            }
+
             try {
                 const AudioContextClass = window.AudioContext || window.webkitAudioContext;
                 if (!AudioContextClass) return;
@@ -3999,6 +4169,35 @@
                 chatNotificationListeners[roomId] = { ref, handler };
                 ref.on('child_added', handler);
             }
+        }
+
+        function updateNotificationToneUI(userData = localUsers[CURRENT_USER] || {}) {
+            const toneUrl = userData.notificationToneUrl || '';
+            const toneName = userData.notificationToneName || '';
+
+            if (toneUrl) {
+                notificationToneStatus.textContent = `Current tone: ${toneName || 'Custom MP3'}`;
+                notificationTonePreview.src = toneUrl;
+                notificationTonePreview.style.display = 'block';
+            } else {
+                notificationToneStatus.textContent = 'Default app tone active';
+                notificationTonePreview.removeAttribute('src');
+                notificationTonePreview.style.display = 'none';
+            }
+        }
+
+        function openUserProfile(user) {
+            if (!user) return;
+
+            userProfileAvatar.src = getUserImage(user);
+            handleImageError(userProfileAvatar);
+            userProfileName.textContent = user.name || user.username || 'Unknown user';
+            userProfileUsername.textContent = `@${user.username || CURRENT_USER || 'user'}`;
+            userProfileStatus.textContent = user.isPersonal ? 'Personal notes' : (user.online ? 'Online' : 'Offline');
+            userProfileRole.textContent = user.role || 'user';
+            userProfileEmail.textContent = user.email || 'Not shared';
+            userProfileBio.textContent = user.bio || 'No bio yet';
+            userProfileDialog.classList.add('active');
         }
 
         // ========== PASSWORD TOGGLE ==========
@@ -4335,6 +4534,7 @@
                         chatAvatarImg.src = getUserImage(data);
                         handleImageError(profileImagePreview);
                         handleImageError(chatAvatarImg);
+                        updateNotificationToneUI(data);
                         
                         if (data.themePreference) {
                             applyTheme(data.themePreference);
@@ -6959,6 +7159,121 @@
             themePanel.classList.remove('open');
         });
 
+        if (chatAvatarImg) {
+            chatAvatarImg.addEventListener('click', () => {
+                if (!activeContact && CURRENT_USER) {
+                    openUserProfile({ username: CURRENT_USER, ...(localUsers[CURRENT_USER] || {}) });
+                    return;
+                }
+
+                if (activeContact?.isPersonal && CURRENT_USER) {
+                    openUserProfile({ username: CURRENT_USER, ...(localUsers[CURRENT_USER] || {}), isPersonal: true });
+                    return;
+                }
+
+                if (activeContact?.username) {
+                    openUserProfile({ username: activeContact.username, ...(localUsers[activeContact.username] || activeContact) });
+                }
+            });
+        }
+
+        if (chatProfileTrigger) {
+            chatProfileTrigger.addEventListener('click', () => chatAvatarImg.click());
+        }
+
+        if (closeUserProfileDialog) {
+            closeUserProfileDialog.addEventListener('click', () => {
+                userProfileDialog.classList.remove('active');
+            });
+        }
+
+        if (userProfileDialog) {
+            userProfileDialog.addEventListener('click', (e) => {
+                if (e.target === userProfileDialog) {
+                    userProfileDialog.classList.remove('active');
+                }
+            });
+        }
+
+        notificationTonePickerBtn.addEventListener('click', () => {
+            notificationToneUpload.click();
+        });
+
+        playNotificationToneBtn.addEventListener('click', () => {
+            const toneUrl = localUsers[CURRENT_USER]?.notificationToneUrl;
+            if (toneUrl) {
+                notificationTonePreview.currentTime = 0;
+                notificationTonePreview.play();
+            } else {
+                playNotificationSound();
+            }
+        });
+
+        removeNotificationToneBtn.addEventListener('click', async () => {
+            if (!CURRENT_USER) return;
+
+            try {
+                await db.ref(`users/${CURRENT_USER}`).update({
+                    notificationToneUrl: '',
+                    notificationToneName: ''
+                });
+
+                if (localUsers[CURRENT_USER]) {
+                    localUsers[CURRENT_USER].notificationToneUrl = '';
+                    localUsers[CURRENT_USER].notificationToneName = '';
+                }
+
+                updateNotificationToneUI(localUsers[CURRENT_USER]);
+                showToast('Notification tone removed', '🔕');
+            } catch (error) {
+                console.error('Remove notification tone error:', error);
+                showToast('Failed to remove tone', '❌');
+            }
+        });
+
+        notificationToneUpload.addEventListener('change', async () => {
+            if (!CURRENT_USER || !notificationToneUpload.files?.[0]) return;
+
+            const file = notificationToneUpload.files[0];
+            const isAudio = file.type.startsWith('audio/');
+            const isMp3Name = file.name.toLowerCase().endsWith('.mp3');
+
+            if (!isAudio && !isMp3Name) {
+                showToast('Please choose an MP3 audio file', '⚠️');
+                notificationToneUpload.value = '';
+                return;
+            }
+
+            if (file.size > 10 * 1024 * 1024) {
+                showToast('Notification tone must be under 10MB', '⚠️');
+                notificationToneUpload.value = '';
+                return;
+            }
+
+            try {
+                showToast('Uploading notification tone...', '⏳');
+                const uploadResult = await uploadToCloudinary(file);
+
+                await db.ref(`users/${CURRENT_USER}`).update({
+                    notificationToneUrl: uploadResult.url,
+                    notificationToneName: file.name
+                });
+
+                if (localUsers[CURRENT_USER]) {
+                    localUsers[CURRENT_USER].notificationToneUrl = uploadResult.url;
+                    localUsers[CURRENT_USER].notificationToneName = file.name;
+                }
+
+                updateNotificationToneUI(localUsers[CURRENT_USER]);
+                showToast('Notification tone updated', '🎵');
+            } catch (error) {
+                console.error('Notification tone upload error:', error);
+                showToast('Failed to upload tone', '❌');
+            } finally {
+                notificationToneUpload.value = '';
+            }
+        });
+
         themePanelBtn.addEventListener('click', () => {
             themePanel.classList.toggle('open');
             adminPanel.classList.remove('open');
@@ -6979,6 +7294,7 @@
                 reactionPicker.classList.remove('active');
                 headerDropdown.classList.remove('active');
                 notificationPanel.classList.remove('active');
+                userProfileDialog.classList.remove('active');
                 if (window.innerWidth <= 768) {
                     toggleSidebar(false);
                 }
