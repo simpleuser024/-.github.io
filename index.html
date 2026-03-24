@@ -653,6 +653,137 @@
             display: block;
         }
 
+        .notification-menu {
+            position: relative;
+        }
+
+        .notification-btn-wrap {
+            position: relative;
+        }
+
+        .notification-badge {
+            position: absolute;
+            top: -4px;
+            right: -2px;
+            min-width: 18px;
+            height: 18px;
+            padding: 0 5px;
+            border-radius: 999px;
+            background: var(--error);
+            color: #fff;
+            font-size: 0.7rem;
+            font-weight: 700;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid var(--bg-card);
+        }
+
+        .notification-badge.show {
+            display: flex;
+        }
+
+        .notification-panel {
+            position: absolute;
+            top: 50px;
+            right: 0;
+            width: 320px;
+            max-height: 420px;
+            overflow-y: auto;
+            background: var(--context-menu-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 8px;
+            display: none;
+            z-index: 10001;
+            box-shadow: var(--shadow-1);
+        }
+
+        .notification-panel.active {
+            display: block;
+        }
+
+        .notification-panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 10px 12px;
+            border-bottom: 1px solid var(--glass-border);
+            margin-bottom: 6px;
+        }
+
+        .notification-panel-header h4 {
+            font-size: 0.95rem;
+            color: var(--text-primary);
+        }
+
+        .notification-clear-btn {
+            background: transparent;
+            border: none;
+            color: var(--primary);
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+
+        .notification-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .notification-item {
+            padding: 12px;
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid transparent;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .notification-item:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: var(--glass-border);
+        }
+
+        .notification-item.unread {
+            border-color: rgba(0, 243, 255, 0.4);
+            background: rgba(0, 243, 255, 0.08);
+        }
+
+        .notification-item-title {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 4px;
+        }
+
+        .notification-item-title strong {
+            color: var(--text-primary);
+            font-size: 0.9rem;
+        }
+
+        .notification-item-time {
+            color: var(--text-muted);
+            font-size: 0.72rem;
+            white-space: nowrap;
+        }
+
+        .notification-item-body {
+            color: var(--text-secondary);
+            font-size: 0.82rem;
+            line-height: 1.4;
+            word-break: break-word;
+        }
+
+        .notification-empty {
+            padding: 24px 12px;
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
         .header-dropdown-item {
             padding: 12px 20px;
             display: flex;
@@ -2652,6 +2783,11 @@
                 max-width: 260px;
                 padding: 8px;
             }
+
+            .notification-panel {
+                width: min(320px, calc(100vw - 24px));
+                right: 0;
+            }
             
             .reaction-emoji {
                 width: 40px;
@@ -2689,6 +2825,11 @@
 
             .input-area {
                 padding: 10px 10px calc(10px + env(safe-area-inset-bottom));
+            }
+
+            .notification-panel {
+                width: min(300px, calc(100vw - 20px));
+                right: -4px;
             }
 
             .input-wrapper {
@@ -3002,9 +3143,21 @@
                             </div>
                         </div>
                     </div>
-                    <button class="icon-btn" id="notificationBtn" title="Notifications">
-                        <i class="fas fa-bell"></i>
-                    </button>
+                    <div class="notification-menu">
+                        <div class="notification-btn-wrap">
+                            <button class="icon-btn" id="notificationBtn" title="Notifications">
+                                <i class="fas fa-bell"></i>
+                            </button>
+                            <span class="notification-badge" id="notificationBadge">0</span>
+                        </div>
+                        <div class="notification-panel" id="notificationPanel">
+                            <div class="notification-panel-header">
+                                <h4>Notifications</h4>
+                                <button class="notification-clear-btn" id="clearNotificationsBtn">Clear all</button>
+                            </div>
+                            <div class="notification-list" id="notificationList"></div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -3397,6 +3550,9 @@
 
         // Pin state
         let pinnedChats = [];
+        let chatNotificationListeners = {};
+        let unreadCounts = JSON.parse(localStorage.getItem('nova_unread_counts') || '{}');
+        let notificationItems = JSON.parse(localStorage.getItem('nova_notifications') || '[]');
 
         // Make db and CURRENT_USER globally accessible
         window.db = db;
@@ -3427,6 +3583,10 @@
         const uploadProgress = document.getElementById('uploadProgress');
         const progressBar = document.getElementById('progressBar');
         const notificationBtn = document.getElementById('notificationBtn');
+        const notificationBadge = document.getElementById('notificationBadge');
+        const notificationPanel = document.getElementById('notificationPanel');
+        const notificationList = document.getElementById('notificationList');
+        const clearNotificationsBtn = document.getElementById('clearNotificationsBtn');
         const sidebar = document.getElementById('sidebar');
         const sidebarOverlay = document.getElementById('sidebarOverlay');
         const mobileSidebarToggle = document.getElementById('mobileSidebarToggle');
@@ -3597,6 +3757,15 @@
             });
         }
 
+        renderNotificationPanel();
+        updateNotificationBadge();
+
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden && currentRoomId) {
+                markChatNotificationsAsRead(currentRoomId);
+            }
+        });
+
         // Load pinned chats
         const savedPinned = localStorage.getItem('pinnedChats');
         if (savedPinned) {
@@ -3641,6 +3810,195 @@
             toast.innerHTML = `<i class="fas ${icon}"></i> ${msg}`;
             container.appendChild(toast);
             setTimeout(() => toast.remove(), 3000);
+        }
+
+        function saveNotificationState() {
+            localStorage.setItem('nova_unread_counts', JSON.stringify(unreadCounts));
+            localStorage.setItem('nova_notifications', JSON.stringify(notificationItems.slice(0, 30)));
+        }
+
+        function formatNotificationTime(timestamp) {
+            if (!timestamp) return 'now';
+            const diff = Date.now() - timestamp;
+            if (diff < 60000) return 'now';
+            if (diff < 3600000) return `${Math.floor(diff / 60000)}m`;
+            if (diff < 86400000) return `${Math.floor(diff / 3600000)}h`;
+            return `${Math.floor(diff / 86400000)}d`;
+        }
+
+        function getUnreadCountForChat(username) {
+            if (!CURRENT_USER || username === 'personal') return 0;
+            const roomId = getRoomId(CURRENT_USER, username);
+            return unreadCounts[roomId] || 0;
+        }
+
+        function updateNotificationBadge() {
+            if (!notificationBadge) return;
+            const totalUnread = Object.values(unreadCounts).reduce((sum, count) => sum + count, 0);
+            notificationBadge.textContent = totalUnread > 99 ? '99+' : totalUnread;
+            notificationBadge.classList.toggle('show', totalUnread > 0);
+        }
+
+        function updateChatUnreadBadgesInDom() {
+            document.querySelectorAll('.chat-item[data-username]').forEach(item => {
+                const username = item.dataset.username;
+                if (!username || username === 'personal') return;
+
+                const count = getUnreadCountForChat(username);
+                let badge = item.querySelector('.unread-badge');
+
+                if (count > 0) {
+                    if (!badge) {
+                        badge = document.createElement('div');
+                        badge.className = 'unread-badge';
+                        item.appendChild(badge);
+                    }
+                    badge.textContent = count > 99 ? '99+' : count;
+                } else if (badge) {
+                    badge.remove();
+                }
+            });
+        }
+
+        function renderNotificationPanel() {
+            if (!notificationList) return;
+
+            if (!notificationItems.length) {
+                notificationList.innerHTML = '<div class="notification-empty">No notifications yet</div>';
+                updateNotificationBadge();
+                return;
+            }
+
+            notificationList.innerHTML = notificationItems.map(item => `
+                <div class="notification-item ${item.read ? '' : 'unread'}" data-room-id="${item.roomId}" data-username="${item.username}">
+                    <div class="notification-item-title">
+                        <strong>${escapeHtml(item.title)}</strong>
+                        <span class="notification-item-time">${formatNotificationTime(item.timestamp)}</span>
+                    </div>
+                    <div class="notification-item-body">${escapeHtml(item.body)}</div>
+                </div>
+            `).join('');
+
+            updateNotificationBadge();
+        }
+
+        function markChatNotificationsAsRead(roomId) {
+            if (!roomId) return;
+            unreadCounts[roomId] = 0;
+            notificationItems = notificationItems.map(item =>
+                item.roomId === roomId ? { ...item, read: true } : item
+            );
+            saveNotificationState();
+            renderNotificationPanel();
+            updateChatUnreadBadgesInDom();
+        }
+
+        function addNotificationItem({ roomId, username, title, body }) {
+            notificationItems.unshift({
+                id: `${roomId}_${Date.now()}`,
+                roomId,
+                username,
+                title,
+                body,
+                timestamp: Date.now(),
+                read: false
+            });
+            notificationItems = notificationItems.slice(0, 30);
+            saveNotificationState();
+            renderNotificationPanel();
+        }
+
+        function playNotificationSound() {
+            try {
+                const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+                if (!AudioContextClass) return;
+
+                const ctx = new AudioContextClass();
+                const oscillator = ctx.createOscillator();
+                const gain = ctx.createGain();
+
+                oscillator.type = 'sine';
+                oscillator.frequency.value = 880;
+                gain.gain.value = 0.03;
+
+                oscillator.connect(gain);
+                gain.connect(ctx.destination);
+
+                oscillator.start();
+                gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.25);
+                oscillator.stop(ctx.currentTime + 0.25);
+            } catch (error) {
+                console.error('Notification sound error:', error);
+            }
+        }
+
+        async function syncChatNotificationListeners(usersData = localUsers) {
+            if (!CURRENT_USER) return;
+
+            const allowedUsers = Object.entries(usersData)
+                .filter(([uid]) => uid !== CURRENT_USER)
+                .filter(([uid]) => {
+                    const hasAccess = checkUserAccess(uid);
+                    return CURRENT_USER_ROLE === 'admin' || hasAccess || userPermissions.canChatWithUsers || uid === 'muhammad';
+                });
+
+            const activeRoomIds = new Set(allowedUsers.map(([uid]) => getRoomId(CURRENT_USER, uid)));
+
+            Object.entries(chatNotificationListeners).forEach(([roomId, listener]) => {
+                if (!activeRoomIds.has(roomId)) {
+                    listener.ref.off('child_added', listener.handler);
+                    delete chatNotificationListeners[roomId];
+                }
+            });
+
+            for (const [uid, data] of allowedUsers) {
+                const roomId = getRoomId(CURRENT_USER, uid);
+                if (chatNotificationListeners[roomId]) continue;
+
+                const latestSnapshot = await db.ref(`messages/${roomId}`).orderByChild('timestamp').limitToLast(1).once('value');
+                let latestKnownTimestamp = 0;
+
+                latestSnapshot.forEach(child => {
+                    latestKnownTimestamp = child.val()?.timestamp || 0;
+                });
+
+                const ref = db.ref(`messages/${roomId}`).orderByChild('timestamp');
+                const handler = (snapshot) => {
+                    const msg = snapshot.val();
+                    if (!msg || msg.deleted || msg.sender === CURRENT_USER) return;
+
+                    const messageTimestamp = msg.timestamp || 0;
+                    if (messageTimestamp <= latestKnownTimestamp) return;
+                    latestKnownTimestamp = messageTimestamp;
+
+                    const isCurrentOpenChat = roomId === currentRoomId && !document.hidden;
+                    if (isCurrentOpenChat) return;
+
+                    unreadCounts[roomId] = (unreadCounts[roomId] || 0) + 1;
+
+                    const senderName = localUsers[msg.sender]?.name || data.name || uid;
+                    const messagePreview = msg.text || (msg.audioUrl || msg.audioBase64 ? 'sent a voice message' : 'sent a file');
+
+                    addNotificationItem({
+                        roomId,
+                        username: uid,
+                        title: senderName,
+                        body: messagePreview
+                    });
+
+                    saveNotificationState();
+                    renderNotificationPanel();
+                    updateChatUnreadBadgesInDom();
+                    playNotificationSound();
+
+                    if (document.hidden) {
+                        showNotification('New message', `${senderName}: ${messagePreview}`);
+                    }
+                };
+
+                chatNotificationListeners[roomId] = { ref, handler };
+                ref.on('child_added', handler);
+            }
         }
 
         // ========== PASSWORD TOGGLE ==========
@@ -4147,6 +4505,8 @@
                     
                     renderUserList(visibleUsers);
                     renderArchivedList(archivedUsers);
+                    renderNotificationPanel();
+                    syncChatNotificationListeners(usersData);
                     
                     if (CURRENT_USER_ROLE === 'admin') {
                         loadUserManagement(usersData);
@@ -4184,6 +4544,7 @@
                             <i class="fas fa-trash"></i>
                         </button>
                     </div>
+                    ${getUnreadCountForChat(user.username) ? `<div class="unread-badge">${getUnreadCountForChat(user.username)}</div>` : ''}
                 `;
                 
                 div.addEventListener('click', () => selectContact(user));
@@ -4311,11 +4672,61 @@
         // Header menu toggle
         headerMenuBtn.addEventListener('click', (e) => {
             e.stopPropagation();
+            notificationPanel.classList.remove('active');
             headerDropdown.classList.toggle('active');
+        });
+
+        notificationBtn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+
+            if ('Notification' in window && Notification.permission === 'default') {
+                try {
+                    await Notification.requestPermission();
+                } catch (error) {
+                    console.error('Notification permission error:', error);
+                }
+            }
+
+            headerDropdown.classList.remove('active');
+            notificationPanel.classList.toggle('active');
+            renderNotificationPanel();
+        });
+
+        clearNotificationsBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            unreadCounts = {};
+            notificationItems = notificationItems.map(item => ({ ...item, read: true }));
+            saveNotificationState();
+            renderNotificationPanel();
+            updateChatUnreadBadgesInDom();
+        });
+
+        notificationList.addEventListener('click', (e) => {
+            const item = e.target.closest('.notification-item');
+            if (!item) return;
+
+            const { username, roomId } = item.dataset;
+            const targetUser = localUsers[username];
+
+            if (targetUser) {
+                selectContact({
+                    username,
+                    name: targetUser.name || username,
+                    online: targetUser.online === true,
+                    role: targetUser.role || 'user',
+                    profileImage: targetUser.profileImage,
+                    permissions: targetUser.permissions || {}
+                });
+            }
+
+            markChatNotificationsAsRead(roomId);
+            notificationPanel.classList.remove('active');
         });
 
         document.addEventListener('click', () => {
             headerDropdown.classList.remove('active');
+            notificationPanel.classList.remove('active');
         });
 
         // ========== CHECK USER ACCESS ==========
@@ -4366,6 +4777,7 @@
                             </button>
                         </div>
                     ` : ''}
+                    ${!user.isPersonal && getUnreadCountForChat(user.username) ? `<div class="unread-badge">${getUnreadCountForChat(user.username)}</div>` : ''}
                 `;
                 
                 // Long press for mobile
@@ -4464,7 +4876,8 @@
             messagesContainer.innerHTML = '';
 
             currentRoomId = getRoomId(CURRENT_USER, contact.username);
-            
+            markChatNotificationsAsRead(currentRoomId);
+
             applyUserBackground();
             
             // Listen for typing status
@@ -4507,10 +4920,6 @@
                             renderMessage({ ...msg, id: snapshot.key }, msg.sender === CURRENT_USER ? 'sent' : 'received');
                             scrollToBottom();
                             
-                            if (msg.sender !== CURRENT_USER && document.hidden) {
-                                const sender = localUsers[msg.sender]?.name || msg.sender;
-                                showNotification('New message', `${sender}: ${msg.text || 'sent a file'}`);
-                            }
                         }
                     });
                 } catch (error) {
@@ -6569,6 +6978,7 @@
                 accessDialog.classList.remove('active');
                 reactionPicker.classList.remove('active');
                 headerDropdown.classList.remove('active');
+                notificationPanel.classList.remove('active');
                 if (window.innerWidth <= 768) {
                     toggleSidebar(false);
                 }
@@ -6591,7 +7001,7 @@
         }
 
         function showNotification(title, body) {
-            if (Notification.permission === 'granted' && document.hidden) {
+            if ('Notification' in window && Notification.permission === 'granted' && document.hidden) {
                 try {
                     new Notification(title, {
                         body: body,
