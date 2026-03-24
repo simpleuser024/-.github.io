@@ -3054,15 +3054,7 @@
             <div class="skin-tone-option skin-tone-5" data-tone="5" title="Medium Dark"></div>
             <div class="skin-tone-option skin-tone-6" data-tone="6" title="Dark"></div>
         </div>
-        <div style="display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;">
-            <span class="reaction-emoji" data-reaction="👍">👍</span>
-            <span class="reaction-emoji" data-reaction="❤️">❤️</span>
-            <span class="reaction-emoji" data-reaction="😂">😂</span>
-            <span class="reaction-emoji" data-reaction="😮">😮</span>
-            <span class="reaction-emoji" data-reaction="😢">😢</span>
-            <span class="reaction-emoji" data-reaction="🙏">🙏</span>
-            <span class="more-reactions-btn" id="moreReactionsBtn">+</span>
-        </div>
+        <div id="reactionEmojiGrid" style="display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;">`r`n            <span class="more-reactions-btn" id="moreReactionsBtn">+</span>`r`n        </div>
     </div>
 
     <!-- Context Menu -->
@@ -3694,6 +3686,14 @@
 
         // Skin tone state
         let currentSkinTone = '1';
+        const DEFAULT_REACTIONS = [
+            '\u{1F44D}',
+            '\u{2764}\u{FE0F}',
+            '\u{1F602}',
+            '\u{1F62E}',
+            '\u{1F622}',
+            '\u{1F64F}'
+        ];
 
         // Pin state
         let pinnedChats = [];
@@ -3786,6 +3786,7 @@
         const openAccessDialog = document.getElementById('openAccessDialog');
 
         const reactionPicker = document.getElementById('reactionPicker');
+        const reactionEmojiGrid = document.getElementById('reactionEmojiGrid');
         const skinTonePicker = document.getElementById('skinTonePicker');
         const moreReactionsBtn = document.getElementById('moreReactionsBtn');
 
@@ -4210,6 +4211,57 @@
             userProfileEmail.textContent = user.email || 'Not shared';
             userProfileBio.textContent = user.bio || 'No bio yet';
             userProfileDialog.classList.add('active');
+        }
+
+        function getMessageBasePath() {
+            if (!CURRENT_USER) return '';
+            if (activeContact?.isPersonal) {
+                return `personal/${CURRENT_USER}`;
+            }
+            return currentRoomId ? `messages/${currentRoomId}` : '';
+        }
+
+        function ensureReactionsContainer(messageElement) {
+            if (!messageElement) return null;
+
+            let reactionsContainer = messageElement.querySelector('.message-reactions');
+            if (!reactionsContainer) {
+                const bubble = messageElement.querySelector('.bubble');
+                if (!bubble) return null;
+
+                reactionsContainer = document.createElement('div');
+                reactionsContainer.className = 'message-reactions';
+                bubble.appendChild(reactionsContainer);
+            }
+
+            return reactionsContainer;
+        }
+
+        function refreshMessageReactionsInDom(messageId, reactions) {
+            const messageElement = document.querySelector(`[data-id="${messageId}"]`);
+            const reactionsContainer = ensureReactionsContainer(messageElement);
+            if (!reactionsContainer) return;
+
+            if (reactions && Object.keys(reactions).length > 0) {
+                renderReactions(reactionsContainer, reactions, messageId);
+            } else {
+                reactionsContainer.innerHTML = '';
+            }
+        }
+
+        function renderReactionPickerOptions() {
+            if (!reactionEmojiGrid) return;
+
+            const moreButton = reactionEmojiGrid.querySelector('#moreReactionsBtn');
+            reactionEmojiGrid.querySelectorAll('.reaction-emoji').forEach(el => el.remove());
+
+            DEFAULT_REACTIONS.slice().reverse().forEach((emoji) => {
+                const reactionSpan = document.createElement('span');
+                reactionSpan.className = 'reaction-emoji';
+                reactionSpan.dataset.reaction = emoji;
+                reactionSpan.textContent = emoji;
+                reactionEmojiGrid.insertBefore(reactionSpan, moreButton);
+            });
         }
 
         // ========== PASSWORD TOGGLE ==========
@@ -5148,27 +5200,7 @@
 
             roomMessagesRef.on('child_changed', (snapshot) => {
                 const msg = snapshot.val();
-                const messageElement = document.querySelector(`[data-id="${snapshot.key}"]`);
-                if (messageElement) {
-                    let reactionsContainer = messageElement.querySelector('.message-reactions');
-
-                    if (!reactionsContainer) {
-                        const bubble = messageElement.querySelector('.bubble');
-                        if (bubble) {
-                            reactionsContainer = document.createElement('div');
-                            reactionsContainer.className = 'message-reactions';
-                            bubble.appendChild(reactionsContainer);
-                        }
-                    }
-
-                    if (reactionsContainer) {
-                        if (msg.reactions && Object.keys(msg.reactions).length > 0) {
-                            renderReactions(reactionsContainer, msg.reactions, snapshot.key);
-                        } else {
-                            reactionsContainer.innerHTML = '';
-                        }
-                    }
-                }
+                refreshMessageReactionsInDom(snapshot.key, msg.reactions || null);
             });
 
             listenUsers();
@@ -5193,26 +5225,7 @@
 
             personalRef.on('child_changed', (snapshot) => {
                 const msg = snapshot.val();
-                const messageElement = document.querySelector(`[data-id="${snapshot.key}"]`);
-                if (!messageElement) return;
-
-                let reactionsContainer = messageElement.querySelector('.message-reactions');
-                if (!reactionsContainer) {
-                    const bubble = messageElement.querySelector('.bubble');
-                    if (bubble) {
-                        reactionsContainer = document.createElement('div');
-                        reactionsContainer.className = 'message-reactions';
-                        bubble.appendChild(reactionsContainer);
-                    }
-                }
-
-                if (reactionsContainer) {
-                    if (msg.reactions && Object.keys(msg.reactions).length > 0) {
-                        renderReactions(reactionsContainer, msg.reactions, snapshot.key);
-                    } else {
-                        reactionsContainer.innerHTML = '';
-                    }
-                }
+                refreshMessageReactionsInDom(snapshot.key, msg.reactions || null);
             });
         }
 
@@ -5785,16 +5798,17 @@
             if (!CURRENT_USER) return;
             
             try {
-                const basePath = activeContact?.isPersonal
-                    ? `personal/${CURRENT_USER}`
-                    : (currentRoomId ? `messages/${currentRoomId}` : '');
-
+                const basePath = getMessageBasePath();
                 if (!basePath) return;
 
                 const reactionRef = db.ref(`${basePath}/${messageId}/reactions/${CURRENT_USER}`);
                 const snapshot = await reactionRef.once('value');
+                const existingReaction = snapshot.val();
+                const existingEmoji = typeof existingReaction === 'string'
+                    ? existingReaction
+                    : existingReaction?.emoji;
                 
-                if (snapshot.exists() && snapshot.val().emoji === emoji) {
+                if (snapshot.exists() && existingEmoji === emoji) {
                     // Remove reaction if same emoji
                     await reactionRef.remove();
                 } else {
@@ -5804,6 +5818,10 @@
                         timestamp: Date.now()
                     });
                 }
+
+                const messageSnapshot = await db.ref(`${basePath}/${messageId}`).once('value');
+                const messageData = messageSnapshot.val() || {};
+                refreshMessageReactionsInDom(messageId, messageData.reactions || null);
                 
                 showToast('Reaction added', '👍');
             } catch (error) {
@@ -5872,6 +5890,10 @@
         });
 
         reactMessageBtn.addEventListener('click', () => {
+            if (!selectedMessageId) {
+                showToast('Select a message first', '⚠️');
+                return;
+            }
             const rect = contextMenu.getBoundingClientRect();
             reactionPicker.style.top = rect.top - 50 + 'px';
             reactionPicker.style.left = rect.left + 'px';
@@ -5914,11 +5936,11 @@
         });
 
         // Reaction picker handlers
-        document.querySelectorAll('.reaction-emoji').forEach(emoji => {
-            emoji.addEventListener('click', () => {
-                addReaction(selectedMessageId, emoji.dataset.reaction);
-                reactionPicker.classList.remove('active');
-            });
+        reactionEmojiGrid.addEventListener('click', (e) => {
+            const emoji = e.target.closest('.reaction-emoji');
+            if (!emoji || !selectedMessageId) return;
+            addReaction(selectedMessageId, emoji.dataset.reaction);
+            reactionPicker.classList.remove('active');
         });
 
         deleteMessageBtn.addEventListener('click', () => {
@@ -7210,6 +7232,8 @@
             }
         });
 
+        renderReactionPickerOptions();
+
         // ========== SEND ON ENTER ==========
         messageInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
@@ -7433,5 +7457,8 @@
     </script>
 </body>
 </html>
+
+
+
 
 
