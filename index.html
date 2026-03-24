@@ -5305,13 +5305,21 @@
 
             if (msg.videos && msg.videos.length > 0) {
                 msg.videos.forEach(video => {
-                    content += `<video class="message-video" controls playsinline src="${video.url}"></video>`;
+                    const videoUrl = typeof video === 'string' ? video : video.url;
+                    if (videoUrl) {
+                        content += `<video class="message-video" controls playsinline preload="metadata" src="${videoUrl}"></video>`;
+                    }
                 });
             }
 
             // File attachments
             if (msg.files && msg.files.length > 0) {
                 msg.files.forEach(file => {
+                    if (file.type && file.type.startsWith('video/')) {
+                        content += `<video class="message-video" controls playsinline preload="metadata" src="${file.url}"></video>`;
+                        return;
+                    }
+
                     const fileIcon = getFileIcon(file.name);
                     content += `
                         <a href="${file.url}" target="_blank" class="message-file">
@@ -5326,6 +5334,9 @@
             }
 
             if (msg.fileUrl) {
+                if (msg.fileType && msg.fileType.startsWith('video/')) {
+                    content += `<video class="message-video" controls playsinline preload="metadata" src="${msg.fileUrl}"></video>`;
+                } else {
                 const fileIcon = getFileIcon(msg.fileName);
                 content += `
                     <a href="${msg.fileUrl}" target="_blank" class="message-file">
@@ -5336,6 +5347,7 @@
                         </div>
                     </a>
                 `;
+                }
             }
 
             content += '<div class="message-reactions"></div>';
