@@ -5141,11 +5141,24 @@
             roomMessagesRef.on('child_changed', (snapshot) => {
                 const msg = snapshot.val();
                 const messageElement = document.querySelector(`[data-id="${snapshot.key}"]`);
-                if (messageElement && msg.reactions) {
-                    // Update reactions
-                    const reactionsContainer = messageElement.querySelector('.message-reactions');
+                if (messageElement) {
+                    let reactionsContainer = messageElement.querySelector('.message-reactions');
+
+                    if (!reactionsContainer) {
+                        const bubble = messageElement.querySelector('.bubble');
+                        if (bubble) {
+                            reactionsContainer = document.createElement('div');
+                            reactionsContainer.className = 'message-reactions';
+                            bubble.appendChild(reactionsContainer);
+                        }
+                    }
+
                     if (reactionsContainer) {
-                        renderReactions(reactionsContainer, msg.reactions, snapshot.key);
+                        if (msg.reactions && Object.keys(msg.reactions).length > 0) {
+                            renderReactions(reactionsContainer, msg.reactions, snapshot.key);
+                        } else {
+                            reactionsContainer.innerHTML = '';
+                        }
                     }
                 }
             });
@@ -5311,10 +5324,7 @@
                 `;
             }
 
-            // Add reactions
-            if (msg.reactions) {
-                content += '<div class="message-reactions"></div>';
-            }
+            content += '<div class="message-reactions"></div>';
 
             content += '</div>';
             
@@ -5684,7 +5694,7 @@
 
         // ========== INPUT BAR TOGGLE ==========
         function updateInputButtons() {
-            if (messageInput.value.trim().length > 0) {
+            if (messageInput.value.trim().length > 0 || selectedFiles.length > 0) {
                 voiceBtn.style.display = 'none';
                 sendBtn.style.display = 'flex';
             } else {
@@ -6042,6 +6052,7 @@
             });
             
             updateSelectedFilesPreview();
+            updateInputButtons();
             fileInput.value = '';
         });
 
@@ -6101,6 +6112,7 @@
         window.removeSelectedFile = (index) => {
             selectedFiles.splice(index, 1);
             updateSelectedFilesPreview();
+            updateInputButtons();
         };
 
         // ========== SEND MESSAGE WITH FILES ==========
