@@ -500,11 +500,27 @@
             pointer-events: none;
         }
 
+        .bg-image-layer {
+            position: absolute;
+            inset: 0;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            opacity: 0.5;
+            pointer-events: none;
+            z-index: 0;
+        }
+
         .messages-container {
             position: relative;
             overflow-y: auto;
             background-size: cover;
             background-position: center;
+        }
+
+        .messages-container > :not(.bg-video):not(.bg-image-layer) {
+            position: relative;
+            z-index: 1;
         }
 
         .messages-container.with-video-bg {
@@ -4696,6 +4712,8 @@
             // Remove any existing video background
             const existingVideo = container.querySelector('.bg-video');
             if (existingVideo) existingVideo.remove();
+            const existingImageLayer = container.querySelector('.bg-image-layer');
+            if (existingImageLayer) existingImageLayer.remove();
             
             container.classList.remove('with-video-bg');
             container.style.backgroundImage = '';
@@ -4740,7 +4758,10 @@
                     
                     container.appendChild(video);
                 } else {
-                    container.style.backgroundImage = `url(${bgUrl})`;
+                    const imageLayer = document.createElement('div');
+                    imageLayer.className = 'bg-image-layer';
+                    imageLayer.style.backgroundImage = `url(${bgUrl})`;
+                    container.prepend(imageLayer);
                 }
             }
         }
