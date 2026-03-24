@@ -3054,7 +3054,9 @@
             <div class="skin-tone-option skin-tone-5" data-tone="5" title="Medium Dark"></div>
             <div class="skin-tone-option skin-tone-6" data-tone="6" title="Dark"></div>
         </div>
-        <div id="reactionEmojiGrid" style="display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;">`r`n            <span class="more-reactions-btn" id="moreReactionsBtn">+</span>`r`n        </div>
+        <div id="reactionEmojiGrid" style="display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;">
+            <span class="more-reactions-btn" id="moreReactionsBtn">+</span>
+        </div>
     </div>
 
     <!-- Context Menu -->
@@ -4262,6 +4264,37 @@
                 reactionSpan.textContent = emoji;
                 reactionEmojiGrid.insertBefore(reactionSpan, moreButton);
             });
+        }
+
+        function resetBackgroundTargetPreview() {
+            bgTargetPreview.innerHTML = '';
+            bgTargetPreview.style.backgroundImage = '';
+            bgTargetPreview.style.backgroundColor = 'transparent';
+        }
+
+        function closeBackgroundDialogs() {
+            bgDialog.classList.remove('active');
+            bgTargetDialog.classList.remove('active');
+            resetBackgroundTargetPreview();
+            bgImageUpload.value = '';
+            document.querySelectorAll('.chat-option.selected').forEach(opt => opt.classList.remove('selected'));
+        }
+
+        function renderBackgroundTargetPreview(file) {
+            resetBackgroundTargetPreview();
+
+            const isVideo = file.type.startsWith('video/');
+            if (isVideo) {
+                const objectUrl = URL.createObjectURL(file);
+                bgTargetPreview.innerHTML = `<video src="${objectUrl}" style="width: 100%; height: 100%; object-fit: cover;" autoplay loop muted playsinline></video>`;
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                bgTargetPreview.style.backgroundImage = `url(${e.target.result})`;
+            };
+            reader.readAsDataURL(file);
         }
 
         // ========== PASSWORD TOGGLE ==========
@@ -6408,6 +6441,8 @@
             const file = e.target.files[0];
             if (!file || !CURRENT_USER) return;
 
+            resetBackgroundTargetPreview();
+
             const isVideo = file.type.startsWith('video/');
             
             if (!isVideo && !file.type.startsWith('image/')) {
@@ -6416,11 +6451,8 @@
             }
 
             if (isVideo) {
-                const video = document.createElement('video');
-                video.src = URL.createObjectURL(file);
-                video.onloadeddata = () => {
-                    bgTargetPreview.innerHTML = `<video src="${video.src}" style="width: 100%; height: 100%; object-fit: cover;" autoplay loop muted></video>`;
-                };
+                const objectUrl = URL.createObjectURL(file);
+                bgTargetPreview.innerHTML = `<video src="${objectUrl}" style="width: 100%; height: 100%; object-fit: cover;" autoplay loop muted playsinline></video>`;
             } else {
                 const reader = new FileReader();
                 reader.onload = function(e) {
@@ -6463,6 +6495,10 @@
             const file = bgImageUpload.files[0];
             
             if (!file) return;
+            if (!selectedChat) {
+                showToast('Select a chat first', '⚠️');
+                return;
+            }
 
             try {
                 showToast('Uploading background...', '⏳');
@@ -6497,8 +6533,7 @@
                 showToast('Upload failed: ' + error.message, '❌');
             }
 
-            bgTargetDialog.classList.remove('active');
-            bgImageUpload.value = '';
+            closeBackgroundDialogs();
         });
 
         bgAllChats.addEventListener('click', async () => {
@@ -6525,8 +6560,7 @@
                 showToast('Upload failed: ' + error.message, '❌');
             }
 
-            bgTargetDialog.classList.remove('active');
-            bgImageUpload.value = '';
+            closeBackgroundDialogs();
         });
 
         bgPersonalChat.addEventListener('click', async () => {
@@ -6553,13 +6587,11 @@
                 showToast('Upload failed: ' + error.message, '❌');
             }
 
-            bgTargetDialog.classList.remove('active');
-            bgImageUpload.value = '';
+            closeBackgroundDialogs();
         });
 
         closeBgTargetDialog.addEventListener('click', () => {
-            bgTargetDialog.classList.remove('active');
-            bgImageUpload.value = '';
+            closeBackgroundDialogs();
         });
 
         // ========== THEME FUNCTIONS - FIXED ==========
@@ -7457,6 +7489,8 @@
     </script>
 </body>
 </html>
+
+
 
 
 
