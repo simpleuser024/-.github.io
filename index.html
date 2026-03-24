@@ -1919,6 +1919,14 @@
             transition: transform 0.2s;
         }
 
+        .message-video {
+            width: min(260px, 100%);
+            max-height: 260px;
+            border-radius: 12px;
+            background: rgba(0, 0, 0, 0.25);
+            margin-top: 8px;
+        }
+
         .message-image:hover {
             transform: scale(1.05);
         }
@@ -5295,6 +5303,12 @@
                 content += `<img src="${msg.imageUrl}" class="message-image" onclick="window.open(this.src)">`;
             }
 
+            if (msg.videos && msg.videos.length > 0) {
+                msg.videos.forEach(video => {
+                    content += `<video class="message-video" controls playsinline src="${video.url}"></video>`;
+                });
+            }
+
             // File attachments
             if (msg.files && msg.files.length > 0) {
                 msg.files.forEach(file => {
@@ -6136,6 +6150,7 @@
                     uploadProgress.style.display = 'block';
                     
                     const imageUrls = [];
+                    const videoUrls = [];
                     const files = [];
                     
                     for (let i = 0; i < selectedFiles.length; i++) {
@@ -6147,6 +6162,12 @@
                             
                             if (file.type.startsWith('image/')) {
                                 imageUrls.push(uploadResult.url);
+                            } else if (file.type.startsWith('video/')) {
+                                videoUrls.push({
+                                    url: uploadResult.url,
+                                    name: file.name,
+                                    type: file.type
+                                });
                             } else {
                                 files.push({
                                     url: uploadResult.url,
@@ -6165,6 +6186,10 @@
                         messageData.images = imageUrls;
                     }
                     
+                    if (videoUrls.length > 0) {
+                        messageData.videos = videoUrls;
+                    }
+
                     if (files.length > 0) {
                         messageData.files = files;
                     }
@@ -6177,7 +6202,7 @@
                 }
 
                 await db.ref(`personal/${CURRENT_USER}`).push(messageData);
-                
+                const hadAttachments = selectedFiles.length > 0;
                 messageInput.value = '';
                 selectedFiles = [];
                 updateSelectedFilesPreview();
@@ -6218,6 +6243,7 @@
                     uploadProgress.style.display = 'block';
                     
                     const imageUrls = [];
+                    const videoUrls = [];
                     const files = [];
                     
                     for (let i = 0; i < selectedFiles.length; i++) {
@@ -6229,26 +6255,11 @@
                             
                             if (file.type.startsWith('image/')) {
                                 imageUrls.push(uploadResult.url);
-                            } else if (file.type.startsWith('video/') && file.size > 10 * 1024 * 1024) {
-                                // Large video files can be stored as files instead of backgrounds
-                                files.push({
+                            } else if (file.type.startsWith('video/')) {
+                                videoUrls.push({
                                     url: uploadResult.url,
                                     name: file.name,
-                                    size: file.size,
                                     type: file.type
-                                });
-                            } else if (file.type.startsWith('video/')) {
-                                // Smaller videos can be used as backgrounds
-                                if (!localUsers[CURRENT_USER].chatBackgrounds) {
-                                    localUsers[CURRENT_USER].chatBackgrounds = {};
-                                }
-                                localUsers[CURRENT_USER].chatBackgrounds[currentRoomId] = {
-                                    url: uploadResult.url,
-                                    type: 'video'
-                                };
-                                await db.ref(`users/${CURRENT_USER}/chatBackgrounds/${currentRoomId}`).set({
-                                    url: uploadResult.url,
-                                    type: 'video'
                                 });
                             } else {
                                 files.push({
@@ -6268,6 +6279,10 @@
                         messageData.images = imageUrls;
                     }
                     
+                    if (videoUrls.length > 0) {
+                        messageData.videos = videoUrls;
+                    }
+
                     if (files.length > 0) {
                         messageData.files = files;
                     }
@@ -6285,7 +6300,7 @@
                 // Clear typing indicator and reply
                 db.ref(`typing/${currentRoomId}/${CURRENT_USER}`).remove();
                 cancelReply();
-
+                const hadAttachments = selectedFiles.length > 0;
                 messageInput.value = '';
                 selectedFiles = [];
                 updateSelectedFilesPreview();
@@ -6293,8 +6308,8 @@
                 scrollToBottom();
                 updateInputButtons();
                 
-                if (selectedFiles.length > 0) {
-                    showToast('Message sent with files', '✅');
+                if (hadAttachments) {
+                    showToast('Message sent with files', '?');
                 }
                 
             } catch (error) {
@@ -7375,4 +7390,5 @@
     </script>
 </body>
 </html>
+
 
