@@ -4178,10 +4178,14 @@
             if (toneUrl) {
                 notificationToneStatus.textContent = `Current tone: ${toneName || 'Custom MP3'}`;
                 notificationTonePreview.src = toneUrl;
+                notificationTonePreview.load();
                 notificationTonePreview.style.display = 'block';
             } else {
                 notificationToneStatus.textContent = 'Default app tone active';
+                notificationTonePreview.pause();
+                notificationTonePreview.currentTime = 0;
                 notificationTonePreview.removeAttribute('src');
+                notificationTonePreview.load();
                 notificationTonePreview.style.display = 'none';
             }
         }
@@ -7301,21 +7305,6 @@
             }
         });
 
-        // ========== NOTIFICATION HANDLER ==========
-        if (notificationBtn) {
-            notificationBtn.addEventListener('click', async () => {
-                if (!('Notification' in window)) {
-                    showToast('Notifications not supported', '⚠️');
-                    return;
-                }
-                
-                const permission = await Notification.requestPermission();
-                if (permission === 'granted') {
-                    showToast('Notifications enabled', '🔔');
-                }
-            });
-        }
-
         function showNotification(title, body) {
             if ('Notification' in window && Notification.permission === 'granted' && document.hidden) {
                 try {
@@ -7368,3 +7357,4 @@
     </script>
 </body>
 </html>
+
