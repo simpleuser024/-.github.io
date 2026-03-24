@@ -5190,6 +5190,30 @@
                 renderMessage({ ...msg, id: snapshot.key }, 'sent');
                 scrollToBottom();
             });
+
+            personalRef.on('child_changed', (snapshot) => {
+                const msg = snapshot.val();
+                const messageElement = document.querySelector(`[data-id="${snapshot.key}"]`);
+                if (!messageElement) return;
+
+                let reactionsContainer = messageElement.querySelector('.message-reactions');
+                if (!reactionsContainer) {
+                    const bubble = messageElement.querySelector('.bubble');
+                    if (bubble) {
+                        reactionsContainer = document.createElement('div');
+                        reactionsContainer.className = 'message-reactions';
+                        bubble.appendChild(reactionsContainer);
+                    }
+                }
+
+                if (reactionsContainer) {
+                    if (msg.reactions && Object.keys(msg.reactions).length > 0) {
+                        renderReactions(reactionsContainer, msg.reactions, snapshot.key);
+                    } else {
+                        reactionsContainer.innerHTML = '';
+                    }
+                }
+            });
         }
 
         // ========== RENDER REACTIONS ==========
@@ -5200,7 +5224,8 @@
             const userReacted = {};
             
             Object.entries(reactions).forEach(([userId, react]) => {
-                const emoji = react.emoji;
+                const emoji = typeof react === 'string' ? react : react?.emoji;
+                if (!emoji) return;
                 reactionCounts[emoji] = (reactionCounts[emoji] || 0) + 1;
                 if (userId === CURRENT_USER) {
                     userReacted[emoji] = true;
@@ -5757,10 +5782,16 @@
 
         // ========== ADD REACTION ==========
         async function addReaction(messageId, emoji) {
-            if (!currentRoomId || !CURRENT_USER) return;
+            if (!CURRENT_USER) return;
             
             try {
-                const reactionRef = db.ref(`messages/${currentRoomId}/${messageId}/reactions/${CURRENT_USER}`);
+                const basePath = activeContact?.isPersonal
+                    ? `personal/${CURRENT_USER}`
+                    : (currentRoomId ? `messages/${currentRoomId}` : '');
+
+                if (!basePath) return;
+
+                const reactionRef = db.ref(`${basePath}/${messageId}/reactions/${CURRENT_USER}`);
                 const snapshot = await reactionRef.once('value');
                 
                 if (snapshot.exists() && snapshot.val().emoji === emoji) {
